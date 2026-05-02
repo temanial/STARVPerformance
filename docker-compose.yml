@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ./server
+      dockerfile: ../docker/php/Dockerfile
+    container_name: starv-app
+    volumes:
+      - ./server:/var/www
+    networks:
+      - starv-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: starv-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./server:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - starv-network
+
+  db:
+    image: mysql:8.0
+    container_name: starv-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: starv_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - starv-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: starv-pma
+    links:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    ports:
+      - "8080:80"
+    networks:
+      - starv-network
+
+  frontend:
+    build:
+      context: ./client
+    container_name: starv-frontend
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - starv-network
+
+networks:
+  starv-network:
+    driver: bridge
+
+volumes:
+  db_data:
